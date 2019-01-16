@@ -21,6 +21,7 @@ let applicationStatus = {
 };
 
 let app = express(),
+    pulseMonitor = require('./lib/pulse-monitor'),
     expressApplicationLocalFunctions = require('./middleware/expressApplicationLocalFunctions'),
     routingPathsMiddleware = require('./middleware/routingPathsMiddleware'),
     apiRouter = require('./routes/api')(applicationStatus);
@@ -30,6 +31,8 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(compression());
+
+// pulseMonitor.
 
 app.locals = expressApplicationLocalFunctions;
 

@@ -12,7 +12,7 @@ let applicationStatus = {
     version: require('../package.json').version,
     name: require('../package.json').name
 };
-let applicationStatusDelayedLaunch = 0;
+let applicationStatusDelayedLaunch = -1;
 
 if (cluster.isMaster) {
     cluster.on('fork', function (worker) {
@@ -22,12 +22,21 @@ if (cluster.isMaster) {
         debug(applicationStatus.name + ' server process killed [' + worker.process.pid + ']');
         cluster.fork();
     });
-    // Fork workers.
-    for (let i = 0; i < numCPUs; i++) {
-        setTimeout(function () {
-            cluster.fork();
-        }, applicationStatusDelayedLaunch);
-        applicationStatusDelayedLaunch += 1000;
+
+    if (applicationStatusDelayedLaunch >= 0) {
+
+        // Fork workers.
+        for (let i = 0; i < numCPUs; i++) {
+            setTimeout(function () {
+                cluster.fork();
+            }, applicationStatusDelayedLaunch);
+            applicationStatusDelayedLaunch += 1000;
+        }
+
+    } else {
+
+        cluster.fork();
+
     }
 } else {
     require('./app');
