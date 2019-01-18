@@ -6,6 +6,8 @@
 
 'use strict';
 
+let request = require('request');
+
 let debug = require('debug')('pulse-monitor-app');
 let Pulse = {};
 
@@ -67,7 +69,8 @@ Pulse.Monitor = (function () {
 
         this.buildProcessQueue();
 
-        this.log('Queue size: ' + this.profileQueue.length);
+        // this.log('Queue size: ' + this.profileQueue.length);
+        // https://www.npmjs.com/package/request#oauth-signing
 
         if (this.profileQueue.length === 0) { return false; }
         if (this.taskRunning === true) { return false; }
@@ -76,25 +79,44 @@ Pulse.Monitor = (function () {
         let taskProfileId = this.profileQueue.shift();
         let taskProfile = this.profileList[taskProfileId];
 
+        let fetchProfile = {
+            method: 'get',
+            url: taskProfile.url,
+            time: true,
+            timeout: 5000
+        };
+
         // change to npm request
-        fetch(taskProfile.url)
-            .then(function (data) {
-                _self.log('Task Profile: ' + taskProfileId);
-                _self.log(data);
-                _self.profileList[taskProfileId].lastChecked = new Date().getTime();
-                _self.profileList[taskProfileId].scheduledCheck = new Date().getTime() + _self.profileList[taskProfileId].intervalCheck;
-                _self.profileList[taskProfileId].locked = false;
-                _self.taskRunning = false;
-                // report success
-            })
-            .catch(function (error) {
-                _self.log(error);
+        request(fetchProfile, function (error, response, body) {
+
+            if (error) {
+
+                // _self.log(error);
                 _self.profileList[taskProfileId].lastChecked = new Date().getTime();
                 _self.profileList[taskProfileId].scheduledCheck = new Date().getTime() + _self.profileList[taskProfileId].intervalCheck;
                 _self.profileList[taskProfileId].locked = false;
                 _self.taskRunning = false;
                 // report error
-            });
+
+            } else {
+
+                let responseObject = {
+                    headers: response.headers,
+                    contentType: response.headers['content-type'],
+                    statusCode: response.statusCode,
+                    timingPhases: response.timingPhases
+                };
+                debug('Task Profile: ' + taskProfileId);
+                debug(responseObject);
+                _self.profileList[taskProfileId].lastChecked = new Date().getTime();
+                _self.profileList[taskProfileId].scheduledCheck = new Date().getTime() + _self.profileList[taskProfileId].intervalCheck;
+                _self.profileList[taskProfileId].locked = false;
+                _self.taskRunning = false;
+                // report success
+
+            }
+
+        });
 
         return true;
     };
