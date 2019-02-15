@@ -17,6 +17,10 @@ let applicationStatus = {
     name: require('../package.json').name,
     serverPort: process.env.PORT || 5000,
     environment: process.env.NODE_ENV || 'development',
+    accessKeyId: process.env.S3_KEY || '',
+    secretAccessKey: process.env.S3_SECRET || '',
+    databaseUrl: process.env.DATABASE_URL || '',
+    cryptoSecret: process.env.CRYPTO_SECRET || '',
     started: new Date()
 };
 

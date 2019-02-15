@@ -6,10 +6,25 @@
 
 'use strict';
 
+let MongoDB = require('mongodb');
+let MongoClient = require('mongodb').MongoClient;
 let request = require('request');
 
 let debug = require('debug')('pulse-monitor-app');
-let Pulse = {};
+let Pulse = {
+    Client: null,
+    Database: null,
+    Collection: null
+};
+
+MongoClient.connect(process.env.DATABASE_URL, { useNewUrlParser: true }, function (err, client) {
+    if (err) {
+        debug("Error connecting: " + err.message);
+    } else {
+        Pulse.Client = client;
+    }
+});
+
 
 Pulse.Monitor = (function () {
     function Monitor(config) {
@@ -108,11 +123,38 @@ Pulse.Monitor = (function () {
                 };
                 debug('Task Profile: ' + taskProfileId);
                 debug(responseObject);
+                _self.profileList[taskProfileId].responseHistory.unshift(responseObject);
                 _self.profileList[taskProfileId].lastChecked = new Date().getTime();
                 _self.profileList[taskProfileId].scheduledCheck = new Date().getTime() + _self.profileList[taskProfileId].intervalCheck;
                 _self.profileList[taskProfileId].locked = false;
                 _self.taskRunning = false;
+                while (_self.profileList[taskProfileId].responseHistory > 1000) {
+                    _self.profileList[taskProfileId].responseHistory.pop();
+                }
                 // report success
+
+                if (Pulse.Client && !Pulse.Database) {
+                    Pulse.Database = Pulse.Client.db('pulse-app');
+                }
+                // Pulse.Collection = Pulse.Database.collection('pulse-report');
+                Pulse.Database.collection('pulse-report', { strict: false }, function(error, collection) {
+                    if (error) {
+                        debug(error);
+                    } else {
+                        let document = {
+                            "_id": MongoDB.ObjectId(),
+                            "profileId": MongoDB.ObjectId('5c3de1476e7a672790ba1695'),
+                            "report": responseObject
+                        };
+                        collection.insertOne(document, {w: "majority"})
+                            .then(function (result) {
+                                // debug(result);
+                                debug('Document added: ' + new Date().getTime());
+                            }, function(err) {
+                                debug("Insert failed: " + err.message);
+                            });
+                    }
+                });
 
             }
 
@@ -121,6 +163,11 @@ Pulse.Monitor = (function () {
         return true;
     };
 
+    /**
+     *
+     * @param profile {object}
+     * @returns {object}
+     */
     Monitor.prototype.addToQueue = function ( profile ) {
         let profileBlob = {
             id: Monitor.uuidv4(),
@@ -130,7 +177,7 @@ Pulse.Monitor = (function () {
             upTime: 0,
             upSince: 0,
             responseHistory: [],
-            intervalCheck: 60 * 1000 * 5,
+            intervalCheck: 15 * 1000, // 60 * 1000 * 5
             intervalDelta: 0,
             created: new Date().getTime(),
             updated: new Date().getTime(),
@@ -148,6 +195,14 @@ Pulse.Monitor = (function () {
         return false;
     };
 
+    Monitor.prototype.fetchProfile = function ( profileId ) {
+        return false;
+    };
+
+    Monitor.prototype.fetchProfiles = function () {
+        return false;
+    };
+
     return Monitor;
 }());
 
@@ -155,4 +210,6 @@ Pulse.Monitor = (function () {
  * Expose `monitorApplication()`.
  */
 
-exports = module.exports = new Pulse.Monitor();
+exports = module.exports = function ( applicationConfig ) {
+    return new Pulse.Monitor(applicationConfig);
+};

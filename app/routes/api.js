@@ -10,9 +10,23 @@ module.exports = function ( applicationConfig ) {
     let router = express.Router();
     let debug = require('debug')('pulse-monitor-app:routing-api');
 
-    let pulseMonitor = require('../lib/pulse-monitor');
+    let pulseMonitor = require('../lib/pulse-monitor')(applicationConfig);
 
     router.get('/', function(req, res, next) {
+        Buffer.from('username:password').toString('base64');
+        res.send({
+            auth: Buffer.from('username:password').toString('base64'),
+            version: applicationConfig.version
+        });
+    });
+
+    router.post('/login', function(req, res, next) {
+        res.send({
+            version: applicationConfig.version
+        });
+    });
+
+    router.post('/register', function(req, res, next) {
         res.send({
             version: applicationConfig.version
         });
@@ -24,6 +38,12 @@ module.exports = function ( applicationConfig ) {
         }
         res.send({
             body: req.body,
+            version: applicationConfig.version
+        });
+    });
+
+    router.post('/reports', function(req, res, next) {
+        res.send({
             version: applicationConfig.version
         });
     });
